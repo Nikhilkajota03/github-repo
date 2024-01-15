@@ -28,24 +28,16 @@ app.use(express.json());
 app.use(cookieParser());
 
 
-app.use("/home",(req,res)=>{
-
-  res.send("server 0  home");
-})
-
-
-app.use("/",(req,res)=>{
-
- res.send("server home");
-
-})
-
 
 /// USER ROUTES
 
 app.use('/api/auth',authRoute)
 app.use("/api/mak",marketTra)
 app.use("/api/auct",aucte)
+
+app.use("/",(req,res)=>{
+     res.send("server running");
+})
 
 
 
