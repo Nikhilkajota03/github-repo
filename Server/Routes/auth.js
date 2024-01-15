@@ -1,0 +1,278 @@
+const express = require("express");
+const router = express.Router();
+const mongoose = require("mongoose");
+const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+const User = require("../models/registration");
+const jwt = require("jsonwebtoken");
+const Order = require("../models/order");
+
+const  Auction = require("../models/auction");
+const Bid = require("../models/bids");
+const Market = require("../models/order")
+
+router.get("/users", async (req, res) => {
+  try {
+    const users = await User.find();
+
+   
+
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: "internal server error" });
+  }
+});
+
+router.get("/getuser/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const user = await User.findById(id);
+
+    if (!user) {
+       return   res.status(404).json({ message: "user not found" });
+    }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: "internal server error" });
+  }
+});
+
+router.post("/signup", async (req, res) => {
+  const {
+    name,
+    email,
+    Aadhar,
+    phone,
+    maxquantity,
+    pincode,
+    password,
+  } = req.body;
+
+  const check = await User.findOne({ email: email });
+
+  if (check) {
+    return res.status(409).json({ message: "user already exist" });
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashpass = await bcrypt.hashSync(password, salt);
+
+    const newUser = new User({
+      name: name.trim(),
+      email: email.trim(),
+      Aadhar: Aadhar,
+      phone: phone,
+      maxquantity: maxquantity,
+      pincode: pincode,
+      password: hashpass,
+    });
+
+    const save = await newUser.save();
+    res.status(200).json(save);
+  } catch (error) {
+    
+    res.status(500).json({ message: "Network eerror" });
+  }
+});
+
+router.post("/login", async (req, res) => {
+  try {
+    //   const {email,password}= req.body;
+
+    const user = await User.findOne({ email: req.body.email });
+
+    if (!user) {
+      return res.status(400).json("user not found");
+    }
+
+    const match = await bcrypt.compare(req.body.password, user.password);
+    if (!match) {
+      return res.status(401).json("wrong credentials");
+    }
+
+    //  res.status(200).json(user);
+
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        username: user.name,
+        email: user.email,
+        walletAddress: user.walletaddress,
+      },
+      "jwt-secret-key",
+      { expiresIn: "3d" }
+    );
+    const { password, ...info } = user._doc;
+    return res.cookie("token", token).status(200).json(info);
+  } catch (err) {
+      return res.status(400).json(err);
+  }
+});
+
+router.get("/logout", (req, res) => {
+  try {
+    res
+      .clearCookie("token", { sameSite: "none", secure: true })
+      .status(200)
+      .send("User logged out successfully!");
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+router.get("/refetch", (req, res) => {
+  try {
+    const token = req.cookies.token;
+
+    if (!token) {
+      return res.status(404).json({ error: "jwt must be provided" });
+    }
+
+    jwt.verify(token, "jwt-secret-key", {}, async (err, data) => {
+      if (err) {
+        return res.status(404).json(err);
+      }
+
+      res.status(200).json(data);
+    });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+router.put("/userupd/:id", async (req, res) => {
+
+
+  const id = req.params.id;
+  
+
+  const {
+    name,
+    email,
+    Aadhar,
+    phone,
+    maxquantity,
+    pincode,
+    userid,
+    oldusser,
+    password,
+  } = req.body;
+
+ 
+
+  const salt = await bcrypt.genSalt(10);
+
+  if (password !== undefined) {
+    hashpass = await bcrypt.hashSync(password, salt);
+  }
+
+  try {
+    
+
+    const upd = await User.findByIdAndUpdate(
+      id,
+      {
+        name,
+        email,
+        Aadhar,
+        phone,
+        maxquantity,
+        pincode,
+        ...(password && { password: hashpass }),
+      },
+      { new: true }
+    );
+
+   
+
+    if (!upd) {
+    
+      return res.status(404).json({ message: "not updated or  found" });
+    }
+
+    //marketplace update--------------------------------------------------------------------------
+
+
+      const marketuser  = await Market.updateMany(  {
+        userid : id } , {$set : {user : name.trim()} }, {new: true} )
+
+         
+    //auction  update-----------------------------------------------------------------------
+
+     const auctionowner = await Auction.updateMany(  {
+      ownerid : id } , {$set : {owner : name.trim()} }, {new: true} )
+
+      const auctionwinner = await Auction.updateMany(  {
+        bidderid : id } , {$set : {
+          auctionWinner : name.trim()} }, {new: true} )
+    //-------------------------------------------------------------------------------------------
+
+    const bidedowner = await Bid.updateMany(  {
+      ownerid : id } , {$set : {auctionowner : name.trim()} }, {new: true} )
+
+      const bidowner = await Bid.updateMany(  {
+        
+bidderid : id } , {$set : { biddername  : name.trim()} }, {new: true} )
+
+
+
+    return res.status(200).json({ message: "successfully updated" });
+  } catch (error) {
+    return res.status(500).json({ message: "server error" });
+  }
+});
+
+router.put("userupda/:id", (req, res) => {
+  const id = req.params.id;
+
+  const {
+    name,
+    email,
+    Aadhar,
+    phone,
+    maxquantity,
+    pincode,
+    userid,
+    oldusser,
+    password,
+  } = req.body;
+
+  try {
+  } catch (error) {}
+});
+
+
+router.delete("/userDel/:id", async (req, res) => {
+
+
+  const id = req.params.id;
+  
+
+  try {
+    const dltPro = await User.findByIdAndDelete(id);
+
+    if (!dltPro) {
+      return res.status(404).json({ message: "no user found" });
+    }
+
+     const dltauct = await Auction.findOneAndDelete({ownerid
+  : id     })
+
+    if(!dltauct){
+      return res.status(404).json({message:"auction not deleted"})
+    }
+
+    const dltMar = await Market.findOneAndDelete({userid : id})
+
+
+
+    return res.status(200).json({ message: " user deleted" });
+  } catch (error) {
+     return res.status(500).json({ message: "server error" });
+  }
+});
+
+module.exports = router;
