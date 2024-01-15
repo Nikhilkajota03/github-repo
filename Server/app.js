@@ -17,7 +17,7 @@ const aucte = require("./Routes/Auct")
 
 app.use(
   cors({
-    origin: ["http://localhost:3001"],
+    origin: ["https://energy-tradingn.netlify.app"],
     method: ["GET", "POST"],
     credentials: true,
   })
